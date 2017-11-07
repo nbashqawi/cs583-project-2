@@ -11,8 +11,8 @@ tweet_tokenizer = TweetTokenizer()
 
 data_file_location = r"..\resources\training-Obama-Romney-tweets.xlsx"
 
-raw_obama_dataframe = pd.read_excel(data_file_location, sheetname='Obama', header=0, parse_cols="D,E");
-raw_romney_dataframe = pd.read_excel(data_file_location, sheetname='Romney', header=0, parse_cols="D,E");
+raw_obama_dataframe = pd.read_excel(data_file_location, sheetname='Obama', header=0, parse_cols="D,E")
+raw_romney_dataframe = pd.read_excel(data_file_location, sheetname='Romney', header=0, parse_cols="D,E")
 
 #print("Before Removal")
 #print("-----------------------------------------------")
