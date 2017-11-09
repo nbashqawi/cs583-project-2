@@ -9,6 +9,8 @@ init_time = time.process_time()
 eng_stopwords = set(stopwords.words('english'))
 tweet_tokenizer = TweetTokenizer()
 
+print(eng_stopwords)
+
 data_file_location = r"..\resources\training-Obama-Romney-tweets.xlsx"
 
 raw_obama_dataframe = pd.read_excel(data_file_location, sheetname='Obama', header=0, parse_cols="D,E")

@@ -11,6 +11,7 @@ import time
 import functools
 
 from nltk import TweetTokenizer
+from nltk.corpus import stopwords
 
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import cross_validate
@@ -27,6 +28,7 @@ init_time = time.process_time()
 
 data_file_location = r"..\..\resources\training-Obama-Romney-tweets.xlsx"
 tweet_tokenizer = TweetTokenizer()
+eng_stopwords = set(stopwords.words('english'))
 
 def split_train_test(data, test_ratio):
     shuffled_indices = np.random.permutation(len(data))
@@ -58,6 +60,7 @@ def tweet_token_validator(token):
 
 obama_dataframe, romney_dataframe = import_and_filter(dropnan=True)
 print(obama_dataframe['Class'].unique())
+print(romney_dataframe['Class'].unique())
 
 obama_train, obama_test = split_train_test(obama_dataframe, 0.10)
 obama_train_X = obama_train['Annotated Tweet']
@@ -74,14 +77,19 @@ obama_test_y = obama_test['Class']
 #X_new_tfidf = tfidf_transformer.transform(X_new_counts)
 #predicted = clf.predict(X_new_tfidf)
 
-sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=tweet_tokenizer.tokenize, ngram_range=(1,3))),
+def alteredTweetTokenize(text):
+    tweet_tokens = tweet_tokenizer.tokenize(text)
+    regex = re.compile(r'^(!|\.|,|<|>|:|;)$')
+    return [word for word in tweet_tokens if (tweet_token_validator(word) and not (regex.search(word) or word in eng_stopwords))]
+
+sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
                           ('tfidf', TfidfTransformer()),
                           ('clf', MultinomialNB()),])
 
 #sentiment_clf.fit(obama_train_X, obama_train_y)
 #predicted = sentiment_clf.predict(obama_test_X)
 
-def score_reducer(new_score, accum, divisor):
+def score_reducer(accum, new_score, divisor):
     return {"precision": new_score["precision"]/divisor + accum["precision"], "recall": new_score["recall"]/divisor + accum["recall"], "fscore": new_score["fscore"]/divisor + accum["fscore"]}
 
 def kFoldValidation(model, X, y, folds):
@@ -93,6 +101,7 @@ def kFoldValidation(model, X, y, folds):
      pos_scores = []
      neutral_scores = []
      neg_scores = []
+     accuracies = []
      
      for x in range(1, folds+1):
          test_indices = shuffled_indices[(x-1)*bin_size:x*bin_size]
@@ -103,17 +112,23 @@ def kFoldValidation(model, X, y, folds):
          pos_scores.append({"precision": precision[0], "recall": recall[0], "fscore": fscore[0]})
          neutral_scores.append({"precision": precision[1], "recall": recall[1], "fscore": fscore[1]})
          neg_scores.append({"precision": precision[2], "recall": recall[2], "fscore": fscore[2]})
+         accuracies.append(predicted == y.iloc[test_indices])
          
      pos = functools.reduce(functools.partial(score_reducer, divisor=folds), pos_scores, {"precision": 0, "recall": 0, "fscore": 0})
      neutral = functools.reduce(functools.partial(score_reducer, divisor=folds), neutral_scores, {"precision": 0, "recall": 0, "fscore": 0})
      neg = functools.reduce(functools.partial(score_reducer, divisor=folds), neg_scores, {"precision": 0, "recall": 0, "fscore": 0})
+     accuracy = np.mean(accuracies)
      
      print(pos)
      print(neutral)
      print(neg)
+     print(accuracy)
          
          
 kFoldValidation(sentiment_clf, obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], 10)
+kFoldValidation(sentiment_clf, romney_dataframe['Annotated Tweet'], romney_dataframe['Class'], 10)
+
+#print(obama_dataframe['Annotated Tweet'].apply(alteredTweetTokenize))
 
 #for actual, estimate in zip(predicted, obama_test_y):
 #    print("Actual: %f, Estimate: %f" % (actual, estimate))
