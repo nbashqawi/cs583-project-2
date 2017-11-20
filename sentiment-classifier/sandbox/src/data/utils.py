@@ -13,8 +13,10 @@ import functools
 from nltk import TweetTokenizer
 from nltk.corpus import stopwords
 
+import matplotlib.pyplot as plt
+
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import cross_validate
+from sklearn.model_selection import cross_validate, StratifiedKFold
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.naive_bayes import MultinomialNB
@@ -24,11 +26,35 @@ from sklearn.metrics.classification import f1_score, precision_score,\
     recall_score, accuracy_score
 from sklearn.metrics.scorer import make_scorer
 
-init_time = time.process_time()
-
 data_file_location = r"..\..\resources\training-Obama-Romney-tweets.xlsx"
 tweet_tokenizer = TweetTokenizer()
-eng_stopwords = set(stopwords.words('english'))
+special_stopwords = ['omg', 'lol', 'umm', 'hmm', 'ah', 'oh', 'yea']
+special_stopwords.extend(stopwords.words('english'))
+eng_stopwords = set(special_stopwords)
+
+def repeat_letter_reducer(word):
+    result = word
+    
+    patterns = [{'pattern': re.compile(r'^l+o+l+$'), 'fix': 'lol'}, 
+                {'pattern': re.compile(r'^y+e+a+h*$'), 'fix': 'yea'}, 
+                {'pattern': re.compile(r'^r+i+g+h+t+$'), 'fix': 'right'}, 
+                {'pattern': re.compile(r'^o+m+f*g+$'), 'fix': 'omg'},
+                {'pattern': re.compile(r'^h+m+$'), 'fix': 'hmm'},
+                {'pattern': re.compile(r'^u+m+$'), 'fix': 'umm'},
+                {'pattern': re.compile(r'^a+h+$'), 'fix': 'ah'},
+                {'pattern': re.compile(r'^o+h+$'), 'fix': 'oh'},
+                {'pattern': re.compile(r'^n+o+$'), 'fix': 'no'},
+                {'pattern': re.compile(r'^y+e+s+$'), 'fix': 'yes'},
+                {'pattern': re.compile(r'^(yr|yrs|year|years)$'), 'fix': 'year'},
+                {'pattern': re.compile(r'^zzz+s*$'), 'fix': 'zzz'},
+                {'pattern': re.compile(r'^.*(m|h|n)$'), 'fix': word}]
+    
+    for pattern in patterns:
+        if pattern['pattern'].search(word):
+            result = pattern['fix']
+            break
+    
+    return result
 
 def split_train_test(data, test_ratio):
     shuffled_indices = np.random.permutation(len(data))
@@ -36,8 +62,6 @@ def split_train_test(data, test_ratio):
     test_indices = shuffled_indices[:test_set_size]
     train_indices = shuffled_indices[test_set_size:]
     return data.iloc[train_indices], data.iloc[test_indices]
-
-#def bin_data(data, num_bins):
 
 def import_and_filter(dropnan =  None):
     raw_obama_dataframe = pd.read_excel(data_file_location, sheetname='Obama', header=0, parse_cols="D,E")
@@ -58,41 +82,46 @@ def tweet_token_validator(token):
     valid = (not re.search(r"//t\.co.*", token))
     return valid
 
-obama_dataframe, romney_dataframe = import_and_filter(dropnan=True)
-print(obama_dataframe['Class'].unique())
-print(romney_dataframe['Class'].unique())
-
-obama_train, obama_test = split_train_test(obama_dataframe, 0.10)
-obama_train_X = obama_train['Annotated Tweet']
-obama_train_y = obama_train['Class']
-obama_test_X = obama_test['Annotated Tweet']
-obama_test_y = obama_test['Class']
-
-#count_vect = CountVectorizer()
-#X_train_counts = count_vect.fit_transform(obama_train_X)
-#tfidf_transformer = TfidfTransformer()
-#X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
-#clf = MultinomialNB().fit(X_train_tfidf, obama_train_y)
-#X_new_counts = count_vect.transform(obama_test_X)
-#X_new_tfidf = tfidf_transformer.transform(X_new_counts)
-#predicted = clf.predict(X_new_tfidf)
-
 def alteredTweetTokenize(text):
-    tweet_tokens = tweet_tokenizer.tokenize(text)
-    regex = re.compile(r'^(!|\.|,|<|>|:|;)$')
-    return [word for word in tweet_tokens if (tweet_token_validator(word) and not (regex.search(word) or word in eng_stopwords))]
-
-sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
-                          ('tfidf', TfidfTransformer()),
-                          ('clf', MultinomialNB()),])
-
-#sentiment_clf.fit(obama_train_X, obama_train_y)
-#predicted = sentiment_clf.predict(obama_test_X)
+    tweet_tokens = list(map(repeat_letter_reducer, tweet_tokenizer.tokenize(text.encode('ascii', 'ignore').decode('ascii'))))
+    link_regex = re.compile(r'^(!|\.|,|<|>|:|;|{|}|\||~)$')
+    return [word for word in tweet_tokens if (tweet_token_validator(word) and not (link_regex.search(word) or word in eng_stopwords))]
 
 def score_reducer(accum, new_score, divisor):
     return {"precision": new_score["precision"]/divisor + accum["precision"], "recall": new_score["recall"]/divisor + accum["recall"], "fscore": new_score["fscore"]/divisor + accum["fscore"]}
 
-def kFoldValidation(model, X, y, folds):
+def stratifiedIndices(y, bin_size, folds):
+    pos_data = y[y == 1]
+    neg_data = y[y == -1]
+    neu_data = y[y == 0]
+        
+    shuffled_pos_indices = y.index[y.loc['Class'] == 1]
+    shuffled_neg_indices = np.random.permutation(len(neg_data))
+    shuffled_neutral_indices = np.random.permutation(len(neu_data))
+        
+    print(y.iloc[shuffled_pos_indices])
+        
+    pos_to_take = int(len(pos_data)/len(y) * bin_size)
+    neg_to_take = int(len(neg_data)/len(y) * bin_size)
+    neu_to_take = bin_size - pos_to_take - neg_to_take
+    
+    #print(bin_size)
+    #print(pos_to_take)
+    #print(neg_to_take)
+    #print(neu_to_take)
+    
+    stratified_indicies = []
+    
+    for idx in range(0,folds):
+        stratified_indicies.extend(shuffled_pos_indices[idx*pos_to_take:(idx+1)*pos_to_take])
+        stratified_indicies.extend(shuffled_neg_indices[idx*neg_to_take:(idx+1)*neg_to_take])
+        stratified_indicies.extend(shuffled_neutral_indices[idx*neu_to_take:(idx+1)*neu_to_take])
+    
+    #print(y[stratified_indicies])
+    
+#stratifiedIndices(romney_dataframe['Class'], int(len(obama_dataframe['Class'])/10), 10)
+
+def kFoldValidation(model, X, y, folds, stratified=None):
      shuffled_indices = np.random.permutation(len(X))
      remainder = len(X) % folds
      bin_size = int(len(X) / folds)
@@ -103,16 +132,28 @@ def kFoldValidation(model, X, y, folds):
      neg_scores = []
      accuracies = []
      
-     for x in range(1, folds+1):
-         test_indices = shuffled_indices[(x-1)*bin_size:x*bin_size]
-         train_indices = np.concatenate([shuffled_indices[:(x-1)*bin_size], shuffled_indices[x*bin_size:]])
-         model.fit(X.iloc[train_indices], y.iloc[train_indices])
-         predicted = model.predict(X.iloc[test_indices])
-         precision, recall, fscore, support = precision_recall_fscore_support(y.iloc[test_indices], predicted, labels=[1, 0, -1])
-         pos_scores.append({"precision": precision[0], "recall": recall[0], "fscore": fscore[0]})
-         neutral_scores.append({"precision": precision[1], "recall": recall[1], "fscore": fscore[1]})
-         neg_scores.append({"precision": precision[2], "recall": recall[2], "fscore": fscore[2]})
-         accuracies.append(predicted == y.iloc[test_indices])
+     if not stratified:
+         for x in range(1, folds+1):
+             test_indices = shuffled_indices[(x-1)*bin_size:x*bin_size]
+             train_indices = np.concatenate([shuffled_indices[:(x-1)*bin_size], shuffled_indices[x*bin_size:]])
+             model.fit(X.iloc[train_indices], y.iloc[train_indices])
+             predicted = model.predict(X.iloc[test_indices])
+             precision, recall, fscore, support = precision_recall_fscore_support(y.iloc[test_indices], predicted, labels=[1, 0, -1])
+             pos_scores.append({"precision": precision[0], "recall": recall[0], "fscore": fscore[0]})
+             neutral_scores.append({"precision": precision[1], "recall": recall[1], "fscore": fscore[1]})
+             neg_scores.append({"precision": precision[2], "recall": recall[2], "fscore": fscore[2]})
+             accuracies.extend(predicted == y.iloc[test_indices])
+     else:
+        strat = StratifiedKFold(n_splits=folds, shuffle=True)
+        for train_indices, test_indices in strat.split(X, y):
+            model.fit(X.iloc[train_indices], y.iloc[train_indices])
+            predicted = model.predict(X.iloc[test_indices])
+            precision, recall, fscore, support = precision_recall_fscore_support(y.iloc[test_indices], predicted, labels=[1, 0, -1])
+            pos_scores.append({"precision": precision[0], "recall": recall[0], "fscore": fscore[0]})
+            neutral_scores.append({"precision": precision[1], "recall": recall[1], "fscore": fscore[1]})
+            neg_scores.append({"precision": precision[2], "recall": recall[2], "fscore": fscore[2]})
+            accuracies.extend(predicted == y.iloc[test_indices])
+         
          
      pos = functools.reduce(functools.partial(score_reducer, divisor=folds), pos_scores, {"precision": 0, "recall": 0, "fscore": 0})
      neutral = functools.reduce(functools.partial(score_reducer, divisor=folds), neutral_scores, {"precision": 0, "recall": 0, "fscore": 0})
@@ -124,19 +165,41 @@ def kFoldValidation(model, X, y, folds):
      print(neg)
      print(accuracy)
          
-         
-kFoldValidation(sentiment_clf, obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], 10)
-kFoldValidation(sentiment_clf, romney_dataframe['Annotated Tweet'], romney_dataframe['Class'], 10)
+if __name__ == "__main__":
+    init_time = time.process_time()
+    
+    obama_dataframe, romney_dataframe = import_and_filter(dropnan=True)
+    print(obama_dataframe['Class'].unique())
+    print(romney_dataframe['Class'].unique())
+    
+    obama_train, obama_test = split_train_test(obama_dataframe, 0.10)
+    obama_train_X = obama_train['Annotated Tweet']
+    obama_train_y = obama_train['Class']
+    obama_test_X = obama_test['Annotated Tweet']
+    obama_test_y = obama_test['Class']
+    
+    rom_sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
+                              #('tfidf', TfidfTransformer()),
+                              ('clf', MultinomialNB(alpha=0.84, class_prior=[0.40,0.40,0.20]))])
+    obo_sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
+                              #('tfidf', TfidfTransformer()),
+                              ('clf', MultinomialNB(alpha=0.84))])
+    
+    def clean_imported_tweets(tweets):
+        for tweet in tweets:
+            ascii_tweet = tweet.encode('ascii', 'ignore').decode('ascii')
+            tweet_tokens = list(map(repeat_letter_reducer, tweet_tokenizer.tokenize(tweet)))
+            clean_tweet = ' '.join(tweet_tokens)
+            print(clean_tweet)
+    
+    kFoldValidation(obo_sentiment_clf, obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], 10)
+    kFoldValidation(rom_sentiment_clf, romney_dataframe['Annotated Tweet'], romney_dataframe['Class'], 10, stratified=True)
+    
+    total_time = time.process_time() - init_time
+    print(total_time)
 
-#print(obama_dataframe['Annotated Tweet'].apply(alteredTweetTokenize))
+#for tweet in obama_dataframe['Annotated Tweet']:
+#    for c in tweet.encode(encoding='ascii', errors='ignore').decode('ascii'):
+#        if not re.compile(r'[a-zA-Z0-9_!\.,<>:;@#\"\'\\/\?\- ]').search(c):
+#            print(repr(c))
 
-#for actual, estimate in zip(predicted, obama_test_y):
-#    print("Actual: %f, Estimate: %f" % (actual, estimate))
-
-#print("\n")
-#print(metrics.classification_report(obama_test_y, predicted))
-#print("Accuracy: %f" % np.mean(predicted == obama_test_y))
-#print("\n")
-
-total_time = time.process_time() - init_time
-print(total_time)

@@ -1,0 +1,20 @@
+From data.utils.py
+
+#count_vect = CountVectorizer()
+#X_train_counts = count_vect.fit_transform(obama_train_X)
+#tfidf_transformer = TfidfTransformer()
+#X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
+#clf = MultinomialNB().fit(X_train_tfidf, obama_train_y)
+#X_new_counts = count_vect.transform(obama_test_X)
+#X_new_tfidf = tfidf_transformer.transform(X_new_counts)
+#predicted = clf.predict(X_new_tfidf)
+
+#print(obama_dataframe['Annotated Tweet'].apply(alteredTweetTokenize))
+
+#for actual, estimate in zip(predicted, obama_test_y):
+#    print("Actual: %f, Estimate: %f" % (actual, estimate))
+
+#print("\n")
+#print(metrics.classification_report(obama_test_y, predicted))
+#print("Accuracy: %f" % np.mean(predicted == obama_test_y))
+#print("\n")
