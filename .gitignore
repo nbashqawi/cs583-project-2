@@ -101,6 +101,4 @@ ENV/
 .mypy_cache/
 
 # Eclipse
-.project
-.pydevproject
 *.prefs
