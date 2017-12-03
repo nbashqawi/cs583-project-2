@@ -78,6 +78,9 @@ The primary reason for this first attempt was to get a handle on a possible data
     * SciPy
       * Version: 0.19.1
       * Website: https://www.scipy.org/
+    * NumPy
+      * Version: 1.13.3
+      * Website: http://www.numpy.org/
 * NLTK
   * Version: 3.2.5
   * Website: http://www.nltk.org/
