@@ -92,37 +92,6 @@ def alteredTweetTokenize(text):
 def score_reducer(accum, new_score, divisor):
     return {"precision": new_score["precision"]/divisor + accum["precision"], "recall": new_score["recall"]/divisor + accum["recall"], "fscore": new_score["fscore"]/divisor + accum["fscore"]}
 
-def stratifiedIndices(y, bin_size, folds):
-    pos_data = y[y == 1]
-    neg_data = y[y == -1]
-    neu_data = y[y == 0]
-        
-    shuffled_pos_indices = y.index[y.loc['Class'] == 1]
-    shuffled_neg_indices = np.random.permutation(len(neg_data))
-    shuffled_neutral_indices = np.random.permutation(len(neu_data))
-        
-    print(y.iloc[shuffled_pos_indices])
-        
-    pos_to_take = int(len(pos_data)/len(y) * bin_size)
-    neg_to_take = int(len(neg_data)/len(y) * bin_size)
-    neu_to_take = bin_size - pos_to_take - neg_to_take
-    
-    #print(bin_size)
-    #print(pos_to_take)
-    #print(neg_to_take)
-    #print(neu_to_take)
-    
-    stratified_indicies = []
-    
-    for idx in range(0,folds):
-        stratified_indicies.extend(shuffled_pos_indices[idx*pos_to_take:(idx+1)*pos_to_take])
-        stratified_indicies.extend(shuffled_neg_indices[idx*neg_to_take:(idx+1)*neg_to_take])
-        stratified_indicies.extend(shuffled_neutral_indices[idx*neu_to_take:(idx+1)*neu_to_take])
-    
-    #print(y[stratified_indicies])
-    
-#stratifiedIndices(romney_dataframe['Class'], int(len(obama_dataframe['Class'])/10), 10)
-
 def kFoldValidation(model, X, y, folds, stratified=None):
      shuffled_indices = np.random.permutation(len(X))
      remainder = len(X) % folds
