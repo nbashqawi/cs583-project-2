@@ -6,13 +6,18 @@ Tweet Sentiment Classification
 
 
 ## Description:
-
+A Tweet sentiment classifier for CS 583 project 2 at University of Ilinois at Chicago. The objective is to train a classifier, using a list of labelled tweets about Obama and Romney from the 2012 election, to label tweets as positive, negative, or neutral. In the end, two classifiers are constructed, one for Obama and one for Romeny. These two classifiers will then be used to classify the opinion orientaion of unlabelled tweets.
 
 ## Requirements:
+* Input spreadhseet
+  * Labelled Obama data
+  * Labelled Romney data
+* Test data spreadsheet
 
 ## Known Limitations/Errors:
 
 ## How to Run:
+### Command-line:
 
 ## Methods Tried:
 ### First attempt
@@ -22,11 +27,42 @@ The primary reason for this first attempt was to get a handle on a possible data
 
 ### Further Iterations
 #### Preprocessing Steps
+* All data with missing or incorrect labels were removed
+* All data instances with class 2 were removed, as per instructions
+* Data were tokenized using the NLTK TweetTokenizer
+* Common instances or word shortening or letter repition are handled using regular expressions
+  * Currently, these are manually determined
+* Stopword removal using NLTK english stopword dictionary
+  * Added additional words: 'omg', 'lol', 'umm', 'hmm', 'ah', 'oh', 'yea' (likely to change)
+* Removed all non-ASCII characters
+* Removed urls (w/ regex pattern r"//t\.co.*")
+* Removed certain punctuation (w/ regex r'^(!|\.|,|<|>|:|;|{|}|\||~)$') 
+* Tried TF-IDF weighting scheme, though currently not using
+* Data were vectorized using Scikit-learn's CountVectorizer function
+  * Multiple n-gram ranges were tried; 1-3 is the current range
+
+
+#### Features
+* Current features are simply n-grams, where n ranges from 1 to 3
+
+#### Model Evaluation
+* Obama
+  * Current: 10-fold cross-validation
+* Romney
+  * First attempt: regular 10-fold cross-validation
+  * Current: Stratified 10-fold cross-validation
+* Both
+  * n-fold cross-validation is done using a custom function
+    * Indicies are shuffled
+    * Stratification is done using scikit-learn's StratifiedKFold class
+  * F-score, precision, and recall calculated at each fold using scikit-learn's precision_recall_fscore_support
+  * Accuracy calculated at each fold
+  * All scores averaged after gathering scores from all folds
 
 #### Models Tried
 * Multinomial Naive Bayes
 * Support Vector Machine
- * Linear Kernel
+  * Linear Kernel
 
 ## Packages Used:
 * Anaconda Distribution
