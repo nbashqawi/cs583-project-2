@@ -16,7 +16,7 @@ from nltk.corpus import stopwords
 import matplotlib.pyplot as plt
 
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import cross_validate, StratifiedKFold
+from sklearn.model_selection import cross_validate, StratifiedKFold, train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
@@ -33,6 +33,27 @@ tweet_tokenizer = TweetTokenizer()
 special_stopwords = ['omg', 'lol', 'umm', 'hmm', 'ah', 'oh', 'yea']
 special_stopwords.extend(stopwords.words('english'))
 eng_stopwords = set(special_stopwords)
+
+def tweet_editor(tweet): 
+    result = tweet
+    
+    patterns = [{'pattern': re.compile(r'^l+o+l+$'), 'fix': 'lol'}, 
+                {'pattern': re.compile(r'^y+e+a+h*$'), 'fix': 'yea'}, 
+                {'pattern': re.compile(r'^r+i+g+h+t+$'), 'fix': 'right'}, 
+                {'pattern': re.compile(r'^o+m+f*g+$'), 'fix': 'omg'},
+                {'pattern': re.compile(r'^h+m+$'), 'fix': 'hmm'},
+                {'pattern': re.compile(r'^u+m+$'), 'fix': 'umm'},
+                {'pattern': re.compile(r'^a+h+$'), 'fix': 'ah'},
+                {'pattern': re.compile(r'^o+h+$'), 'fix': 'oh'},
+                {'pattern': re.compile(r'^n+o+$'), 'fix': 'no'},
+                {'pattern': re.compile(r'^y+e+s+$'), 'fix': 'yes'},
+                {'pattern': re.compile(r'^(yr|yrs|year|years)$'), 'fix': 'year'},
+                {'pattern': re.compile(r'^zzz+s*$'), 'fix': 'zzz'}]
+    
+    for pattern in patterns:
+        result = re.sub(pattern['pattern'], pattern['fix'], tweet)
+    
+    return result
 
 def repeat_letter_reducer(word):
     result = word
@@ -57,13 +78,6 @@ def repeat_letter_reducer(word):
             break
     
     return result
-
-def split_train_test(data, test_ratio):
-    shuffled_indices = np.random.permutation(len(data))
-    test_set_size = int(len(data) * test_ratio)
-    test_indices = shuffled_indices[:test_set_size]
-    train_indices = shuffled_indices[test_set_size:]
-    return data.iloc[train_indices], data.iloc[test_indices]
 
 def import_and_filter(dropnan =  None):
     raw_obama_dataframe = pd.read_excel(data_file_location, sheetname='Obama', header=0, parse_cols="D,E")
@@ -136,18 +150,12 @@ def kFoldValidation(model, X, y, folds, stratified=None):
      print(neg)
      print(accuracy)
          
-if __name__ == "__main__":
+if not __name__ == "__main__":
     init_time = time.process_time()
     
     obama_dataframe, romney_dataframe = import_and_filter(dropnan=True)
     print(obama_dataframe['Class'].unique())
     print(romney_dataframe['Class'].unique())
-    
-    obama_train, obama_test = split_train_test(obama_dataframe, 0.10)
-    obama_train_X = obama_train['Annotated Tweet']
-    obama_train_y = obama_train['Class']
-    obama_test_X = obama_test['Annotated Tweet']
-    obama_test_y = obama_test['Class']
     
     rom_sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
                               #('tfidf', TfidfTransformer()),
@@ -165,11 +173,41 @@ if __name__ == "__main__":
             clean_tweet = ' '.join(tweet_tokens)
             print(clean_tweet)
     
-    kFoldValidation(obo_sentiment_clf, obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], 10)
+    kFoldValidation(obo_sentiment_clf, obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], 10, stratified=True)
     kFoldValidation(rom_sentiment_clf, romney_dataframe['Annotated Tweet'], romney_dataframe['Class'], 10, stratified=True)
     
     total_time = time.process_time() - init_time
-    print(total_time)
+    print("Total run time: %f" % total_time)
+
+obama_dataframe, romney_dataframe = import_and_filter(dropnan=True)
+rom_sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
+                              #('tfidf', TfidfTransformer()),
+                              #('clf', MultinomialNB(alpha=0.84, class_prior=[0.40,0.40,0.20]))])
+                               ('clf', LinearSVC(class_weight="balanced"))])
+obo_sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
+                              #('tfidf', TfidfTransformer()),
+                              #('clf', MultinomialNB(alpha=0.84))])
+                               ('clf', LinearSVC(class_weight="balanced"))])
+
+init_time = time.process_time()
+rom_X_train, rom_X_test, rom_y_train, rom_y_test = train_test_split(romney_dataframe['Annotated Tweet'], romney_dataframe['Class'], test_size=0.20, random_state=0)
+rom_sentiment_clf.fit(rom_X_train, rom_y_train)
+rom_predicted = rom_sentiment_clf.predict(rom_X_test)
+print(metrics.classification_report(rom_y_test, rom_predicted))
+
+obo_X_train, obo_X_test, obo_y_train, obo_y_test = train_test_split(obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], test_size=0.20, random_state=0)
+obo_sentiment_clf.fit(obo_X_train, obo_y_train)
+obo_predicted = obo_sentiment_clf.predict(obo_X_test)
+print(metrics.classification_report(obo_y_test, obo_predicted))
+total_time = time.process_time() - init_time
+print("Total run time: %f" % total_time)
+
+
+# print(obama_dataframe['Annotated Tweet'][200:300].values)
+# obama_dataframe['Annotated Tweet'] = obama_dataframe['Annotated Tweet'].apply(tweet_editor)
+# print(obama_dataframe['Annotated Tweet'][1:10])
+
+
 
 #SVM Text 
 # obama_dataframe, romney_dataframe = import_and_filter(dropnan=True)
@@ -180,11 +218,6 @@ if __name__ == "__main__":
 #                               #('tfidf', TfidfTransformer()),
 #                               ('clf', LinearSVC(random_state=0))])
 # 
-# obama_train, obama_test = split_train_test(obama_dataframe, 0.10)
-# obama_train_X = obama_train['Annotated Tweet']
-# obama_train_y = obama_train['Class']
-# obama_test_X = obama_test['Annotated Tweet']
-# obama_test_y = obama_test['Class']
 # 
 # obo_svm.fit(obama_train_X, obama_train_y)
 # predicted = obo_svm.predict(obama_test_X)
@@ -195,11 +228,6 @@ if __name__ == "__main__":
 #                               #('tfidf', TfidfTransformer()),
 #                               ('clf', LinearSVC(random_state=0, class_weight={1.: 3.0, -1.: 0.5, 0.: 1.0}))])
 # 
-# romney_train, romney_test = split_train_test(romney_dataframe, 0.10)
-# romney_train_X = romney_train['Annotated Tweet']
-# romney_train_y = romney_train['Class']
-# romney_test_X = romney_test['Annotated Tweet']
-# romney_test_y = romney_test['Class']
 # 
 # rom_svm.fit(romney_train_X, romney_train_y)
 # predicted = rom_svm.predict(romney_test_X)

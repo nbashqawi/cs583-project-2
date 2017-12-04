@@ -19,6 +19,19 @@ From data.utils.py
 #print("Accuracy: %f" % np.mean(predicted == obama_test_y))
 #print("\n")
 
+def split_train_test(data, test_ratio):
+    shuffled_indices = np.random.permutation(len(data))
+    test_set_size = int(len(data) * test_ratio)
+    test_indices = shuffled_indices[:test_set_size]
+    train_indices = shuffled_indices[test_set_size:]
+    return data.iloc[train_indices], data.iloc[test_indices]
+
+# obama_train, obama_test = split_train_test(obama_dataframe, 0.10)
+# obama_train_X = obama_train['Annotated Tweet']
+# obama_train_y = obama_train['Class']
+# obama_test_X = obama_test['Annotated Tweet']
+# obama_test_y = obama_test['Class']
+
 def stratifiedIndices(y, bin_size, folds):
     pos_data = y[y == 1]
     neg_data = y[y == -1]
