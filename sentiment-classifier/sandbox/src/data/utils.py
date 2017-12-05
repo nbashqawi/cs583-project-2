@@ -24,9 +24,6 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import LinearSVC, SVC
 from sklearn import metrics
 from sklearn.metrics import precision_recall_fscore_support
-from sklearn.metrics.classification import f1_score, precision_score,\
-    recall_score, accuracy_score
-from sklearn.metrics.scorer import make_scorer
 
 data_file_location = r"..\..\resources\training-Obama-Romney-tweets.xlsx"
 tweet_tokenizer = TweetTokenizer()
@@ -78,6 +75,25 @@ def repeat_letter_reducer(word):
             break
     
     return result
+
+def import_test_data(data_file):
+    raw_obama_dataframe = pd.read_excel(data_file, sheetname='Obama', header=None, parse_cols="A,B")
+    raw_obama_dataframe.rename(columns={0: 'id', 1: 'tweet'}, inplace=True)
+    #raw_obama_dataframe['Class'] = pd.to_numeric(raw_obama_dataframe['Class'], errors='coerce', downcast='float')
+        
+    raw_romney_dataframe = pd.read_excel(data_file, sheetname='Romney', header=None, parse_cols="A,B")
+    raw_romney_dataframe.rename(columns={0: 'id', 1: 'tweet'}, inplace=True)
+    #raw_romney_dataframe['Class'] = pd.to_numeric(raw_romney_dataframe['Class'], errors='coerce', downcast='float')
+    
+    print(raw_obama_dataframe)
+    print(raw_romney_dataframe)
+    
+    return raw_obama_dataframe, raw_romney_dataframe
+    
+def export_classifier_results(test_data, predictions, out_file):
+    export_data = {'id': test_data['id'], 'prediction': predictions}
+    export_df = pd.DataFrame(export_data)
+    export_df.to_csv(out_file, sep='\t', index=False)
 
 def import_and_filter(dropnan =  None):
     raw_obama_dataframe = pd.read_excel(data_file_location, sheetname='Obama', header=0, parse_cols="D,E")
@@ -150,7 +166,7 @@ def kFoldValidation(model, X, y, folds, stratified=None):
      print(neg)
      print(accuracy)
          
-if not __name__ == "__main__":
+if __name__ == "__main__":
     init_time = time.process_time()
     
     obama_dataframe, romney_dataframe = import_and_filter(dropnan=True)
@@ -179,28 +195,32 @@ if not __name__ == "__main__":
     total_time = time.process_time() - init_time
     print("Total run time: %f" % total_time)
 
-obama_dataframe, romney_dataframe = import_and_filter(dropnan=True)
-rom_sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
-                              #('tfidf', TfidfTransformer()),
-                              #('clf', MultinomialNB(alpha=0.84, class_prior=[0.40,0.40,0.20]))])
-                               ('clf', LinearSVC(class_weight="balanced"))])
-obo_sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
-                              #('tfidf', TfidfTransformer()),
-                              #('clf', MultinomialNB(alpha=0.84))])
-                               ('clf', LinearSVC(class_weight="balanced"))])
 
-init_time = time.process_time()
-rom_X_train, rom_X_test, rom_y_train, rom_y_test = train_test_split(romney_dataframe['Annotated Tweet'], romney_dataframe['Class'], test_size=0.20, random_state=0)
-rom_sentiment_clf.fit(rom_X_train, rom_y_train)
-rom_predicted = rom_sentiment_clf.predict(rom_X_test)
-print(metrics.classification_report(rom_y_test, rom_predicted))
 
-obo_X_train, obo_X_test, obo_y_train, obo_y_test = train_test_split(obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], test_size=0.20, random_state=0)
-obo_sentiment_clf.fit(obo_X_train, obo_y_train)
-obo_predicted = obo_sentiment_clf.predict(obo_X_test)
-print(metrics.classification_report(obo_y_test, obo_predicted))
-total_time = time.process_time() - init_time
-print("Total run time: %f" % total_time)
+# obama_dataframe, romney_dataframe = import_and_filter(dropnan=True)
+# rom_sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
+#                               #('tfidf', TfidfTransformer()),
+#                               #('clf', MultinomialNB(alpha=0.84, class_prior=[0.40,0.40,0.20]))])
+#                                ('clf', LinearSVC(class_weight="balanced"))])
+# obo_sentiment_clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
+#                               #('tfidf', TfidfTransformer()),
+#                               #('clf', MultinomialNB(alpha=0.84))])
+#                                ('clf', LinearSVC(class_weight="balanced"))])
+# 
+# init_time = time.process_time()
+# rom_X_train, rom_X_test, rom_y_train, rom_y_test = train_test_split(romney_dataframe['Annotated Tweet'], romney_dataframe['Class'], test_size=0.20, random_state=0)
+# rom_sentiment_clf.fit(rom_X_train, rom_y_train)
+# rom_predicted = rom_sentiment_clf.predict(rom_X_test)
+# print(metrics.classification_report(rom_y_test, rom_predicted))
+# 
+# obo_X_train, obo_X_test, obo_y_train, obo_y_test = train_test_split(obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], test_size=0.20, random_state=0)
+# obo_sentiment_clf.fit(obo_X_train, obo_y_train)
+# obo_predicted = obo_sentiment_clf.predict(obo_X_test)
+# print(metrics.classification_report(obo_y_test, obo_predicted))
+# total_time = time.process_time() - init_time
+# print("Total run time: %f" % total_time)
+
+
 
 
 # print(obama_dataframe['Annotated Tweet'][200:300].values)
