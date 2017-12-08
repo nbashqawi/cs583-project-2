@@ -92,11 +92,11 @@ def import_test_data(data_file):
     return raw_obama_dataframe, raw_romney_dataframe
 
 def import_test_data_separate(obama_file, romney_file):
-    raw_obama_dataframe = pd.read_excel(obama_file, sheetname='Obama', header=None, parse_cols="A,B")
+    raw_obama_dataframe = pd.read_excel(obama_file, sheetname=0, header=None, parse_cols="A,B")
     raw_obama_dataframe.rename(columns={0: 'id', 1: 'tweet'}, inplace=True)
     #raw_obama_dataframe['Class'] = pd.to_numeric(raw_obama_dataframe['Class'], errors='coerce', downcast='float')
         
-    raw_romney_dataframe = pd.read_excel(romney_file, sheetname='Romney', header=None, parse_cols="A,B")
+    raw_romney_dataframe = pd.read_excel(romney_file, sheetname=0, header=None, parse_cols="A,B")
     raw_romney_dataframe.rename(columns={0: 'id', 1: 'tweet'}, inplace=True)
     #raw_romney_dataframe['Class'] = pd.to_numeric(raw_romney_dataframe['Class'], errors='coerce', downcast='float')
     
@@ -108,7 +108,8 @@ def import_test_data_separate(obama_file, romney_file):
 def export_classifier_results(test_data, predictions, out_file):
     export_data = {'id': test_data['id'], 'prediction': predictions}
     export_df = pd.DataFrame(export_data)
-    export_df.to_csv(out_file, sep='\t', index=False)
+    np.savetxt(out_file, export_df, fmt = ['%d', '%d'], delimiter=';;')
+    #export_df.to_csv(out_file, sep=";", index=False)
 
 def import_and_filter(data_file, dropnan =  None):
     raw_obama_dataframe = pd.read_excel(data_file, sheetname='Obama', header=0, parse_cols="D,E")
@@ -176,10 +177,10 @@ def kFoldValidation(model, X, y, folds, stratified=None):
      neg = functools.reduce(functools.partial(score_reducer, divisor=folds), neg_scores, {"precision": 0, "recall": 0, "fscore": 0})
      accuracy = np.mean(accuracies)
      
-     print(pos)
-     print(neutral)
-     print(neg)
-     print(accuracy)
+     print("Positive:", pos)
+     print("Neutral: ", neutral)
+     print("Negative:", neg)
+     print("Overall accuracy: %f" % accuracy)
          
 def select_model(model_name):
     clf = False
@@ -191,7 +192,7 @@ def select_model(model_name):
     elif model_name == "bayes":
         clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
                         #('tfidf', TfidfTransformer()),
-                        ('clf', MultinomialNB(alpha=0.84))])
+                        ('clf', MultinomialNB())])
     elif model_name == "sgd":
         clf = Pipeline([('vect', CountVectorizer(tokenizer=alteredTweetTokenize, ngram_range=(1,3))),
                         #('tfidf', TfidfTransformer()),
@@ -207,15 +208,47 @@ if __name__ == "__main__":
     init_time = time.process_time()
     
     obama_dataframe, romney_dataframe = import_and_filter(data_file_location, dropnan=True)
-    print(obama_dataframe['Class'].unique())
-    print(romney_dataframe['Class'].unique())
+    #print(obama_dataframe['Class'].unique())
+    #print(romney_dataframe['Class'].unique())
     
+    print("====================================================\n")
+    # Support Vector Machine
+    print("Support Vector Machine Results:")
+    print("--------------------------------------------------")
+    rom_sentiment_clf = select_model("svm")
+    obo_sentiment_clf = select_model("svm")
+    
+    print("Obama:")
+    kFoldValidation(obo_sentiment_clf, obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], 10, stratified=True)
+    print("\nRomney:")
+    kFoldValidation(rom_sentiment_clf, romney_dataframe['Annotated Tweet'], romney_dataframe['Class'], 10, stratified=True)
+    print("--------------------------------------------------\n")
+    
+    # Multinomial Naive Bayes
+    print("Multinomial Naive Bayes Results:")
+    print("--------------------------------------------------")
+    rom_sentiment_clf = select_model("bayes")
+    obo_sentiment_clf = select_model("bayes")
+
+    print("Obama:")    
+    kFoldValidation(obo_sentiment_clf, obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], 10, stratified=True)
+    print("\nRomney:")
+    kFoldValidation(rom_sentiment_clf, romney_dataframe['Annotated Tweet'], romney_dataframe['Class'], 10, stratified=True)
+    print("--------------------------------------------------\n")
+    
+    # Logistic Regression
+    print("Logistic Regression Results:")
+    print("--------------------------------------------------")
     rom_sentiment_clf = select_model("log_reg")
     obo_sentiment_clf = select_model("log_reg")
     
+    print("Obama:")
     kFoldValidation(obo_sentiment_clf, obama_dataframe['Annotated Tweet'], obama_dataframe['Class'], 10, stratified=True)
+    print("\nRomney:")
     kFoldValidation(rom_sentiment_clf, romney_dataframe['Annotated Tweet'], romney_dataframe['Class'], 10, stratified=True)
+    print("--------------------------------------------------\n")
     
+    print("====================================================")
     total_time = time.process_time() - init_time
     print("Total run time: %f" % total_time)
     

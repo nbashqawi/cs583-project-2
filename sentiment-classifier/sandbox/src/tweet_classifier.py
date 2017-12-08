@@ -9,10 +9,11 @@ from sklearn import metrics
 import matplotlib.pyplot as plt
 
 train_file_location = r"..\resources\training-Obama-Romney-tweets.xlsx"
-test_file_location = r"..\resources\sample-testdata.xlsx"
+obama_test_file_location = r"..\resources\sample-testdata-obama.xlsx"
+romney_test_file_location = r"..\resources\sample-testdata-romney.xlsx"
 
 obama_train, romney_train = data.import_and_filter(train_file_location, dropnan = True)
-obama_test, romney_test = data.import_test_data(test_file_location)
+obama_test, romney_test = data.import_test_data_separate(obama_test_file_location, romney_test_file_location)
 
 obo_model = data.select_model("log_reg")
 obo_model.fit(obama_train['Annotated Tweet'], obama_train['Class'])
