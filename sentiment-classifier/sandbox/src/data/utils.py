@@ -86,8 +86,8 @@ def import_test_data(data_file):
     raw_romney_dataframe.rename(columns={0: 'id', 1: 'tweet'}, inplace=True)
     #raw_romney_dataframe['Class'] = pd.to_numeric(raw_romney_dataframe['Class'], errors='coerce', downcast='float')
     
-    print(raw_obama_dataframe)
-    print(raw_romney_dataframe)
+#     print(raw_obama_dataframe)
+#     print(raw_romney_dataframe)
     
     return raw_obama_dataframe, raw_romney_dataframe
 
@@ -100,8 +100,8 @@ def import_test_data_separate(obama_file, romney_file):
     raw_romney_dataframe.rename(columns={0: 'id', 1: 'tweet'}, inplace=True)
     #raw_romney_dataframe['Class'] = pd.to_numeric(raw_romney_dataframe['Class'], errors='coerce', downcast='float')
     
-    print(raw_obama_dataframe)
-    print(raw_romney_dataframe)
+#     print(raw_obama_dataframe)
+#     print(raw_romney_dataframe)
     
     return raw_obama_dataframe, raw_romney_dataframe
     
